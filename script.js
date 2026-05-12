@@ -15,8 +15,20 @@ const ideaSeeds = [
   { id: 12, name: 'نادي لياقة نسائي مصغر', type: 'لياقة', region: 'جدة', success: 87, budget: 275000, roi: 27, equipment: ['أجهزة مقاومة', 'غرفة حصص', 'تطبيق عضويات', 'مدربات'], status: 'جاهزة للطرح', shares: 31, minTicket: 15000, description: 'نادي بوتيك للحصص القصيرة والتحولات الشهرية بتجربة فاخرة ومجتمع محلي.' }
 ];
 
+const investorSeeds = [
+  { id: 1, name: 'عبدالله الراشد', type: 'مستثمر ملاك', region: 'الرياض', risk: 'متوازن', capital: 1250000, targetRoi: 24, status: 'نشط', preferred: 'تجزئة فاخرة', joined: '2024-01-18', portfolio: [{ id: 101, projectId: 1, units: 8, entryPrice: 7500, currentValue: 72000, status: 'نشطة' }, { id: 102, projectId: 6, units: 3, entryPrice: 25000, currentValue: 81000, status: 'نشطة' }, { id: 103, projectId: 12, units: 5, entryPrice: 15000, currentValue: 84500, status: 'قيد التوسع' }] },
+  { id: 2, name: 'نورة العبدلي', type: 'صندوق عائلي', region: 'جدة', risk: 'منخفض', capital: 2350000, targetRoi: 19, status: 'نشط', preferred: 'تعليم', joined: '2023-11-07', portfolio: [{ id: 201, projectId: 7, units: 12, entryPrice: 4000, currentValue: 53500, status: 'نشطة' }, { id: 202, projectId: 2, units: 7, entryPrice: 5000, currentValue: 39200, status: 'نشطة' }, { id: 203, projectId: 11, units: 4, entryPrice: 8000, currentValue: 33400, status: 'متابعة' }] },
+  { id: 3, name: 'شركة واحة النمو', type: 'شريك تشغيلي', region: 'دبي', risk: 'مرتفع', capital: 4100000, targetRoi: 31, status: 'توسع', preferred: 'طاقة وتنقل', joined: '2024-02-12', portfolio: [{ id: 301, projectId: 8, units: 6, entryPrice: 30000, currentValue: 210000, status: 'قيد التوسع' }, { id: 302, projectId: 3, units: 9, entryPrice: 12000, currentValue: 126000, status: 'نشطة' }, { id: 303, projectId: 4, units: 10, entryPrice: 9000, currentValue: 95800, status: 'نشطة' }] },
+  { id: 4, name: 'ماجد السلمي', type: 'مستثمر ملاك', region: 'الدمام', risk: 'متوازن', capital: 860000, targetRoi: 22, status: 'نشط', preferred: 'خدمات سيارات', joined: '2024-03-03', portfolio: [{ id: 401, projectId: 10, units: 10, entryPrice: 6500, currentValue: 74200, status: 'نشطة' }, { id: 402, projectId: 5, units: 8, entryPrice: 3500, currentValue: 30300, status: 'متابعة' }] },
+  { id: 5, name: 'أريج للاستثمار', type: 'صندوق عائلي', region: 'القاهرة', risk: 'منخفض', capital: 1900000, targetRoi: 20, status: 'مراجعة', preferred: 'تسويق', joined: '2023-10-21', portfolio: [{ id: 501, projectId: 9, units: 16, entryPrice: 2500, currentValue: 44700, status: 'نشطة' }, { id: 502, projectId: 4, units: 5, entryPrice: 9000, currentValue: 48600, status: 'نشطة' }] },
+  { id: 6, name: 'خالد بن سالم', type: 'شريك تشغيلي', region: 'الرياض', risk: 'مرتفع', capital: 1450000, targetRoi: 27, status: 'نشط', preferred: 'صحة وجمال', joined: '2024-04-01', portfolio: [{ id: 601, projectId: 6, units: 5, entryPrice: 25000, currentValue: 139000, status: 'قيد التوسع' }, { id: 602, projectId: 1, units: 6, entryPrice: 7500, currentValue: 51500, status: 'نشطة' }] }
+];
+
 let ideas = [...ideaSeeds];
+let investors = investorSeeds.map(investor => ({ ...investor, portfolio: investor.portfolio.map(holding => ({ ...holding })) }));
 let filters = { query: '', type: 'الكل', region: 'الكل', status: 'الكل', sort: 'success-desc', page: 1 };
+let investorFilters = { query: '', type: 'الكل', region: 'الكل', risk: 'الكل', sort: 'capital-desc', page: 1 };
+let portfolioFilters = { query: '', status: 'الكل', sort: 'value-desc', page: 1 };
 let projectsPage = 1;
 let calculatorLines = [];
 const pageSize = 6;
@@ -258,13 +270,127 @@ function projectsPageView() {
   `);
 }
 
-function investorsPage() {
-  return shell(`
-    ${pageHeader('بوابة المستثمرين', 'واجهة لأصحاب رؤوس المال لمقارنة الفرص وحجز الحصص ومتابعة العائد المتوقع.')}
-    <div class="grid gap-6 lg:grid-cols-3">
-      ${['مستثمر ملاك', 'صندوق عائلي', 'شريك تشغيلي'].map((name, idx) => `<article class="lux-card rounded-[2.2rem] p-6 transition hover:-translate-y-2"><h2 class="text-2xl font-black text-champagne">${name}</h2><p class="mt-3 text-sm leading-7 text-champagne/62">محفظة مخصصة مع فلاتر مخاطر وحد أدنى استثماري وتقارير أداء شهرية.</p><div class="mt-5 rounded-2xl bg-white/5 p-4"><p class="text-xs text-champagne/50">فرص موصى بها</p><p class="mt-2 text-3xl font-black text-amberlux">${idx + 4}</p></div><button class="btn-primary mt-5 w-full" onclick="showToast('تم إنشاء ملف تفضيلات المستثمر')">إنشاء ملف مستثمر</button></article>`).join('')}
+function getInvestorMetrics(investor) {
+  const invested = investor.portfolio.reduce((sum, holding) => sum + holding.units * holding.entryPrice, 0);
+  const current = investor.portfolio.reduce((sum, holding) => sum + holding.currentValue, 0);
+  const roi = invested ? Math.round(((current - invested) / invested) * 100) : 0;
+  return { invested, current, roi, count: investor.portfolio.length };
+}
+
+function getFilteredInvestors() {
+  const q = investorFilters.query.trim().toLowerCase();
+  let list = investors.filter(investor =>
+    (!q || [investor.name, investor.type, investor.region, investor.preferred, investor.risk].join(' ').toLowerCase().includes(q)) &&
+    (investorFilters.type === 'الكل' || investor.type === investorFilters.type) &&
+    (investorFilters.region === 'الكل' || investor.region === investorFilters.region) &&
+    (investorFilters.risk === 'الكل' || investor.risk === investorFilters.risk)
+  );
+  const [key, dir] = investorFilters.sort.split('-');
+  list.sort((a, b) => {
+    const aMetrics = getInvestorMetrics(a);
+    const bMetrics = getInvestorMetrics(b);
+    const map = { capital: [a.capital, b.capital], roi: [aMetrics.roi, bMetrics.roi], current: [aMetrics.current, bMetrics.current], joined: [new Date(a.joined).getTime(), new Date(b.joined).getTime()] };
+    const [av, bv] = map[key] || [a.capital, b.capital];
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+  return list;
+}
+
+function investorFilterBar() {
+  const types = ['الكل', ...new Set(investors.map(i => i.type))];
+  const regions = ['الكل', ...new Set(investors.map(i => i.region))];
+  const risks = ['الكل', ...new Set(investors.map(i => i.risk))];
+  return `<div class="lux-card mb-8 rounded-[2rem] p-4">
+    <div class="grid gap-3 md:grid-cols-5">
+      <input id="investor-query" class="input-lux md:col-span-2" placeholder="ابحث باسم المستثمر أو التفضيل" value="${investorFilters.query}">
+      ${select('investor-type', types, investorFilters.type)}
+      ${select('investor-region', regions, investorFilters.region)}
+      ${select('investor-risk', risks, investorFilters.risk)}
     </div>
+    <div class="mt-3 grid gap-3 md:grid-cols-[1fr_auto]">
+      <select id="investor-sort" class="select-lux"><option value="capital-desc" ${investorFilters.sort==='capital-desc'?'selected':''}>الأعلى رأس مال</option><option value="current-desc" ${investorFilters.sort==='current-desc'?'selected':''}>الأعلى قيمة محفظة</option><option value="roi-desc" ${investorFilters.sort==='roi-desc'?'selected':''}>الأعلى أداءً</option><option value="joined-desc" ${investorFilters.sort==='joined-desc'?'selected':''}>الأحدث انضماماً</option></select>
+      <button class="btn-primary" onclick="openInvestorModal()">إضافة مستثمر</button>
+    </div>
+  </div>`;
+}
+
+function investorsPage() {
+  const list = getFilteredInvestors();
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  investorFilters.page = Math.min(investorFilters.page, totalPages);
+  const pageItems = list.slice((investorFilters.page - 1) * pageSize, investorFilters.page * pageSize);
+  return shell(`
+    ${pageHeader('بوابة المستثمرين', 'صفحة إدارة المستثمرين مع فرز وفلاتر وصفحات، ولكل مستثمر محفظة استثمارية مستقلة بروابط عميقة وإجراءات كاملة.')}
+    ${investorFilterBar()}
+    <div class="grid gap-6 lg:grid-cols-3">
+      ${pageItems.map(investorCard).join('') || `<div class="lux-card rounded-[2rem] p-8 text-center text-champagne/55 lg:col-span-3">لا يوجد مستثمرون مطابقون للبحث</div>`}
+    </div>
+    ${pagination(investorFilters.page, totalPages, 'setInvestorPage')}
     <div class="lux-card mt-8 rounded-[2.2rem] p-6"><h2 class="text-2xl font-black text-champagne">خط سير الاستثمار</h2><div class="mt-5 grid gap-4 md:grid-cols-4">${['اختيار الفرصة', 'فحص المعدات', 'حجز الحصص', 'توقيع الشراكة'].map((s,i)=>`<div class="rounded-2xl border border-champagne/10 bg-white/5 p-4"><span class="text-3xl font-black text-amberlux">0${i+1}</span><p class="mt-3 font-bold text-champagne">${s}</p></div>`).join('')}</div></div>
+  `);
+}
+
+function investorCard(investor) {
+  const metrics = getInvestorMetrics(investor);
+  return `<article class="lux-card rounded-[2.2rem] p-6 transition hover:-translate-y-2">
+    <div class="flex items-start justify-between gap-3"><div><span class="rounded-full bg-emeraldlux/25 px-3 py-1 text-xs font-bold text-emerald-100">${investor.region}</span><h2 class="mt-4 text-2xl font-black text-champagne">${investor.name}</h2><p class="mt-1 text-xs text-amberlux">${investor.type} • مخاطر ${investor.risk}</p></div><span class="rounded-full bg-amberlux/15 px-3 py-1 text-xs font-black text-amberlux">${investor.status}</span></div>
+    <p class="mt-4 text-sm leading-7 text-champagne/62">يفضل الاستثمار في ${investor.preferred} ويستهدف عائداً سنوياً يقارب ${investor.targetRoi}%.</p>
+    <div class="mt-5 grid grid-cols-2 gap-3"><div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-champagne/50">رأس المال</p><p class="mt-2 font-black text-champagne">${formatMoney(investor.capital)}</p></div><div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-champagne/50">أداء المحفظة</p><p class="mt-2 font-black ${metrics.roi >= 0 ? 'text-emerald-200' : 'text-red-200'}">${metrics.roi}%</p></div></div>
+    <div class="mt-5 rounded-2xl bg-white/5 p-4"><p class="text-xs text-champagne/50">قيمة المحفظة الحالية</p><p class="mt-2 text-3xl font-black text-amberlux">${formatMoney(metrics.current)}</p><p class="mt-1 text-xs text-champagne/50">${metrics.count} مشاريع ضمن المحفظة</p></div>
+    <div class="mt-5 grid grid-cols-2 gap-2"><button class="btn-primary" onclick="navigate('/investors/${investor.id}/portfolio')">فتح المحفظة</button><button class="btn-secondary" onclick="openInvestorModal(${investor.id})">تعديل</button><button class="btn-ghost" onclick="duplicateInvestor(${investor.id})">نسخ</button><button class="btn-danger" onclick="deleteInvestor(${investor.id})">حذف</button></div>
+  </article>`;
+}
+
+function getPortfolioRows(investor) {
+  const q = portfolioFilters.query.trim().toLowerCase();
+  let rows = investor.portfolio.map(holding => {
+    const project = ideas.find(i => i.id === Number(holding.projectId));
+    const invested = holding.units * holding.entryPrice;
+    const performance = invested ? Math.round(((holding.currentValue - invested) / invested) * 100) : 0;
+    return { ...holding, project, invested, performance };
+  }).filter(row =>
+    (!q || [row.project?.name, row.project?.type, row.project?.region, row.status].join(' ').toLowerCase().includes(q)) &&
+    (portfolioFilters.status === 'الكل' || row.status === portfolioFilters.status)
+  );
+  const [key, dir] = portfolioFilters.sort.split('-');
+  rows.sort((a, b) => {
+    const map = { value: [a.currentValue, b.currentValue], performance: [a.performance, b.performance], units: [a.units, b.units], success: [a.project?.success || 0, b.project?.success || 0] };
+    const [av, bv] = map[key] || [a.currentValue, b.currentValue];
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+  return rows;
+}
+
+function portfolioFilterBar(investor) {
+  const statuses = ['الكل', ...new Set(investor.portfolio.map(h => h.status))];
+  return `<div class="lux-card mb-8 rounded-[2rem] p-4">
+    <div class="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]">
+      <input id="portfolio-query" class="input-lux" placeholder="ابحث باسم المشروع أو القطاع أو المنطقة" value="${portfolioFilters.query}">
+      ${select('portfolio-status', statuses, portfolioFilters.status)}
+      <select id="portfolio-sort" class="select-lux"><option value="value-desc" ${portfolioFilters.sort==='value-desc'?'selected':''}>الأعلى قيمة</option><option value="performance-desc" ${portfolioFilters.sort==='performance-desc'?'selected':''}>الأعلى أداءً</option><option value="units-desc" ${portfolioFilters.sort==='units-desc'?'selected':''}>الأكثر حصصاً</option><option value="success-desc" ${portfolioFilters.sort==='success-desc'?'selected':''}>الأعلى نجاحاً</option></select>
+      <button class="btn-primary" onclick="openHoldingModal(${investor.id})">إضافة أصل</button>
+    </div>
+  </div>`;
+}
+
+function investorPortfolioPage(id) {
+  const investor = investors.find(i => i.id === Number(id)) || investors[0];
+  const metrics = getInvestorMetrics(investor);
+  const rows = getPortfolioRows(investor);
+  const totalPages = Math.max(1, Math.ceil(rows.length / 5));
+  portfolioFilters.page = Math.min(portfolioFilters.page, totalPages);
+  const pageRows = rows.slice((portfolioFilters.page - 1) * 5, portfolioFilters.page * 5);
+  const allocationTotal = Math.max(1, metrics.current);
+  return shell(`
+    <div class="mb-6 flex flex-wrap gap-3"><a href="/investors" data-link class="btn-ghost">العودة للمستثمرين</a><a href="/investors/${investor.id}" data-link class="btn-secondary">رابط صفحة المستثمر</a><button class="btn-primary" onclick="openInvestorModal(${investor.id})">تعديل بيانات المستثمر</button></div>
+    ${pageHeader(`محفظة ${investor.name}`, 'صفحة محفظة استثمارية مستقلة تعرض المشاريع والحصص والقيمة والأداء مع فلترة وفرز وصفحات وإجراءات CRUD لكل أصل.')}
+    <div class="grid gap-5 md:grid-cols-4">${miniMetric('رأس المال المتاح', formatMoney(investor.capital), 'text-champagne')}${miniMetric('القيمة الحالية', formatMoney(metrics.current), 'text-amberlux')}${miniMetric('إجمالي المستثمر', formatMoney(metrics.invested), 'text-champagne')}${miniMetric('العائد المحقق', metrics.roi + '%', metrics.roi >= 0 ? 'text-emerald-200' : 'text-red-200')}</div>
+    <div class="lux-card mt-8 rounded-[2.2rem] p-6"><div class="grid gap-4 md:grid-cols-4"><div><p class="text-xs text-champagne/50">نوع المستثمر</p><p class="mt-2 font-black text-champagne">${investor.type}</p></div><div><p class="text-xs text-champagne/50">المنطقة</p><p class="mt-2 font-black text-champagne">${investor.region}</p></div><div><p class="text-xs text-champagne/50">مستوى المخاطر</p><p class="mt-2 font-black text-champagne">${investor.risk}</p></div><div><p class="text-xs text-champagne/50">التفضيل</p><p class="mt-2 font-black text-champagne">${investor.preferred}</p></div></div></div>
+    ${portfolioFilterBar(investor)}
+    <div class="grid gap-6 lg:grid-cols-[1fr_.36fr]">
+      <div class="lux-card rounded-[2.2rem] p-4"><div class="table-scroll overflow-x-auto"><table class="w-full min-w-[980px] text-sm"><thead><tr class="text-champagne/55"><th class="p-4 text-right">المشروع</th><th class="p-4">المنطقة</th><th class="p-4">الحصص</th><th class="p-4">المستثمر</th><th class="p-4">القيمة الحالية</th><th class="p-4">الأداء</th><th class="p-4">الحالة</th><th class="p-4">الإجراءات</th></tr></thead><tbody>${pageRows.map(row => `<tr class="border-t border-champagne/10 transition hover:bg-white/5"><td class="p-4"><b class="text-champagne">${row.project?.name || 'مشروع محذوف'}</b><p class="mt-1 text-xs text-amberlux">${row.project?.type || 'غير مصنف'}</p></td><td class="p-4 text-center">${row.project?.region || '-'}</td><td class="p-4 text-center">${row.units}</td><td class="p-4 text-center">${formatMoney(row.invested)}</td><td class="p-4 text-center font-black text-amberlux">${formatMoney(row.currentValue)}</td><td class="p-4 text-center font-black ${row.performance >= 0 ? 'text-emerald-200' : 'text-red-200'}">${row.performance}%</td><td class="p-4 text-center">${row.status}</td><td class="p-4"><div class="flex flex-wrap justify-center gap-2"><button class="btn-ghost !px-3 !py-2" onclick="navigate('/ideas/${row.projectId}')">عرض</button><button class="btn-secondary !px-3 !py-2" onclick="openHoldingModal(${investor.id}, ${row.id})">تعديل</button><button class="btn-primary !px-3 !py-2" onclick="sellHoldingUnit(${investor.id}, ${row.id})">بيع حصة</button><button class="btn-danger !px-3 !py-2" onclick="deleteHolding(${investor.id}, ${row.id})">حذف</button></div></td></tr>`).join('') || `<tr><td colspan="8" class="p-8 text-center text-champagne/50">لا توجد أصول مطابقة</td></tr>`}</tbody></table></div>${pagination(portfolioFilters.page, totalPages, 'setPortfolioPage')}</div>
+      <aside class="lux-card rounded-[2.2rem] p-6"><h2 class="text-2xl font-black text-champagne">توزيع المحفظة</h2><div class="mt-5 space-y-4">${rows.map(row => `<div><div class="mb-2 flex justify-between gap-3 text-xs"><span class="text-champagne/70">${row.project?.name || 'مشروع'}</span><b class="text-amberlux">${Math.round((row.currentValue / allocationTotal) * 100)}%</b></div><div class="h-2 overflow-hidden rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-l from-amberlux to-champagne" style="width:${Math.max(6, Math.round((row.currentValue / allocationTotal) * 100))}%"></div></div></div>`).join('') || '<p class="text-sm text-champagne/55">أضف أصولاً لرؤية التوزيع.</p>'}</div><button class="btn-ghost mt-6 w-full" onclick="showToast('تم إنشاء تقرير المحفظة الشهري')">إنشاء تقرير شهري</button></aside>
+    </div>
   `);
 }
 
@@ -302,18 +428,79 @@ function bindIdeaForm(id) {
   });
 }
 
+function openInvestorModal(id) {
+  const investor = investors.find(i => i.id === Number(id));
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-champagne/15 bg-espresso p-5 shadow-perfume"><div class="mb-4 flex items-center justify-between"><h2 class="text-2xl font-black text-champagne">${investor ? 'تعديل المستثمر' : 'إضافة مستثمر'}</h2><button class="btn-ghost" onclick="closeModal()">إغلاق</button></div>${investorForm(investor)}</div>`;
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  bindInvestorForm(investor?.id);
+}
+
+function investorForm(investor = {}) {
+  return `<form id="investor-form" class="grid gap-3"><input name="name" required class="input-lux" placeholder="اسم المستثمر" value="${investor.name || ''}"><div class="grid gap-3 md:grid-cols-2"><select name="type" class="select-lux"><option ${investor.type==='مستثمر ملاك'?'selected':''}>مستثمر ملاك</option><option ${investor.type==='صندوق عائلي'?'selected':''}>صندوق عائلي</option><option ${investor.type==='شريك تشغيلي'?'selected':''}>شريك تشغيلي</option></select><input name="region" required class="input-lux" placeholder="المنطقة" value="${investor.region || ''}"></div><div class="grid gap-3 md:grid-cols-3"><select name="risk" class="select-lux"><option ${investor.risk==='منخفض'?'selected':''}>منخفض</option><option ${investor.risk==='متوازن'?'selected':''}>متوازن</option><option ${investor.risk==='مرتفع'?'selected':''}>مرتفع</option></select><input name="capital" required type="number" min="1" class="input-lux" placeholder="رأس المال" value="${investor.capital || ''}"><input name="targetRoi" required type="number" min="1" class="input-lux" placeholder="العائد المستهدف %" value="${investor.targetRoi || ''}"></div><div class="grid gap-3 md:grid-cols-3"><input name="preferred" required class="input-lux" placeholder="القطاع المفضل" value="${investor.preferred || ''}"><select name="status" class="select-lux"><option ${investor.status==='نشط'?'selected':''}>نشط</option><option ${investor.status==='توسع'?'selected':''}>توسع</option><option ${investor.status==='مراجعة'?'selected':''}>مراجعة</option></select><input name="joined" type="date" class="input-lux" value="${investor.joined || new Date().toISOString().slice(0,10)}"></div><button class="btn-primary" type="submit">حفظ المستثمر</button></form>`;
+}
+
+function bindInvestorForm(id) {
+  document.getElementById('investor-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    const existing = investors.find(i => i.id === id);
+    const payload = { ...data, id: id || Date.now(), capital: +data.capital, targetRoi: +data.targetRoi, portfolio: existing?.portfolio || [] };
+    if (id) investors = investors.map(i => i.id === id ? payload : i); else investors.unshift(payload);
+    closeModal(); showToast('تم حفظ المستثمر'); renderRoute();
+  });
+}
+
+function openHoldingModal(investorId, holdingId) {
+  const investor = investors.find(i => i.id === Number(investorId));
+  if (!investor) return;
+  const holding = investor.portfolio.find(h => h.id === Number(holdingId));
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[2rem] border border-champagne/15 bg-espresso p-5 shadow-perfume"><div class="mb-4 flex items-center justify-between"><h2 class="text-2xl font-black text-champagne">${holding ? 'تعديل أصل بالمحفظة' : 'إضافة أصل للمحفظة'}</h2><button class="btn-ghost" onclick="closeModal()">إغلاق</button></div>${holdingForm(holding)}</div>`;
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  bindHoldingForm(investor.id, holding?.id);
+}
+
+function holdingForm(holding = {}) {
+  return `<form id="holding-form" class="grid gap-3"><select name="projectId" class="select-lux">${ideas.map(project => `<option value="${project.id}" ${Number(holding.projectId)===project.id?'selected':''}>${project.name} - ${project.region}</option>`).join('')}</select><div class="grid gap-3 md:grid-cols-3"><input name="units" required type="number" min="1" class="input-lux" placeholder="عدد الحصص" value="${holding.units || ''}"><input name="entryPrice" required type="number" min="1" class="input-lux" placeholder="سعر الدخول" value="${holding.entryPrice || ''}"><input name="currentValue" required type="number" min="1" class="input-lux" placeholder="القيمة الحالية" value="${holding.currentValue || ''}"></div><select name="status" class="select-lux"><option ${holding.status==='نشطة'?'selected':''}>نشطة</option><option ${holding.status==='قيد التوسع'?'selected':''}>قيد التوسع</option><option ${holding.status==='متابعة'?'selected':''}>متابعة</option><option ${holding.status==='مباعة جزئياً'?'selected':''}>مباعة جزئياً</option></select><button class="btn-primary" type="submit">حفظ الأصل</button></form>`;
+}
+
+function bindHoldingForm(investorId, holdingId) {
+  document.getElementById('holding-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    const payload = { id: holdingId || Date.now(), projectId: +data.projectId, units: +data.units, entryPrice: +data.entryPrice, currentValue: +data.currentValue, status: data.status };
+    investors = investors.map(investor => investor.id === investorId ? { ...investor, portfolio: holdingId ? investor.portfolio.map(h => h.id === holdingId ? payload : h) : [payload, ...investor.portfolio] } : investor);
+    closeModal(); showToast('تم حفظ أصل المحفظة'); renderRoute();
+  });
+}
+
 function bindFilters() {
   [['filter-query','query'], ['filter-type','type'], ['filter-region','region'], ['filter-status','status'], ['filter-sort','sort']].forEach(([id, key]) => {
     const el = document.getElementById(id);
     if (el) el.addEventListener(key === 'query' ? 'input' : 'change', e => { filters[key] = e.target.value; filters.page = 1; projectsPage = 1; renderRoute(false); });
   });
+  [['investor-query','query'], ['investor-type','type'], ['investor-region','region'], ['investor-risk','risk'], ['investor-sort','sort']].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(key === 'query' ? 'input' : 'change', e => { investorFilters[key] = e.target.value; investorFilters.page = 1; renderRoute(false); });
+  });
+  [['portfolio-query','query'], ['portfolio-status','status'], ['portfolio-sort','sort']].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(key === 'query' ? 'input' : 'change', e => { portfolioFilters[key] = e.target.value; portfolioFilters.page = 1; renderRoute(false); });
+  });
 }
 
 function setIdeaPage(p) { filters.page = p; renderRoute(); }
 function setProjectsPage(p) { projectsPage = p; renderRoute(); }
+function setInvestorPage(p) { investorFilters.page = p; renderRoute(); }
+function setPortfolioPage(p) { portfolioFilters.page = p; renderRoute(); }
 function duplicateIdea(id) { const item = ideas.find(i => i.id === id); if (item) { ideas.unshift({ ...item, id: Date.now(), name: item.name + ' - نسخة' }); showToast('تم نسخ الفكرة'); renderRoute(); } }
+function duplicateInvestor(id) { const investor = investors.find(i => i.id === id); if (investor) { investors.unshift({ ...investor, id: Date.now(), name: investor.name + ' - نسخة', portfolio: investor.portfolio.map(h => ({ ...h, id: Date.now() + h.id })) }); showToast('تم نسخ المستثمر ومحفظته'); renderRoute(); } }
 function deleteIdea(id) { if (confirm('هل تريد حذف هذه الفكرة؟')) { ideas = ideas.filter(i => i.id !== id); showToast('تم حذف الفكرة'); renderRoute(); } }
+function deleteInvestor(id) { if (confirm('هل تريد حذف المستثمر ومحفظته؟')) { investors = investors.filter(i => i.id !== id); showToast('تم حذف المستثمر'); renderRoute(); } }
 function reserveShares(id) { const item = ideas.find(i => i.id === id); if (item && item.shares > 0) { item.shares -= 1; showToast('تم حجز حصة استثمارية واحدة'); renderRoute(); } }
+function sellHoldingUnit(investorId, holdingId) { const investor = investors.find(i => i.id === investorId); const holding = investor?.portfolio.find(h => h.id === holdingId); if (holding && holding.units > 1) { holding.units -= 1; holding.currentValue = Math.max(holding.entryPrice, holding.currentValue - holding.entryPrice); holding.status = 'مباعة جزئياً'; showToast('تم بيع حصة من المحفظة'); renderRoute(false); } else { deleteHolding(investorId, holdingId); } }
+function deleteHolding(investorId, holdingId) { if (confirm('هل تريد حذف هذا الأصل من المحفظة؟')) { investors = investors.map(investor => investor.id === investorId ? { ...investor, portfolio: investor.portfolio.filter(h => h.id !== holdingId) } : investor); showToast('تم حذف الأصل من المحفظة'); renderRoute(false); } }
 function removeCalcLine(idx) { calculatorLines.splice(idx, 1); renderRoute(false); }
 function seedCalculator() { calculatorLines = [{name:'معدات أساسية', category:'معدات', qty:1, cost:85000},{name:'ترخيص وإجراءات', category:'تراخيص', qty:1, cost:22000},{name:'منصة حجز ودفع', category:'تقنية', qty:1, cost:34000},{name:'إطلاق وتسويق', category:'تسويق', qty:1, cost:18000}]; renderRoute(false); }
 
@@ -341,6 +528,7 @@ function renderRoute(scroll = true) {
   else if (path === '/projects') content = projectsPageView();
   else if (path === '/projects/new') content = newProjectPage();
   else if (path === '/investors') content = investorsPage();
+  else if (path.match(/^\/investors\/\d+(\/portfolio)?$/)) content = investorPortfolioPage(path.split('/')[2]);
   else if (path.startsWith('/dashboard')) content = dashboardPage();
   else content = hero();
   app().innerHTML = content;
@@ -362,12 +550,20 @@ document.getElementById('menu-toggle').addEventListener('click', () => {
 window.addEventListener('popstate', renderRoute);
 window.navigate = navigate;
 window.openIdeaModal = openIdeaModal;
+window.openInvestorModal = openInvestorModal;
+window.openHoldingModal = openHoldingModal;
 window.closeModal = closeModal;
 window.setIdeaPage = setIdeaPage;
 window.setProjectsPage = setProjectsPage;
+window.setInvestorPage = setInvestorPage;
+window.setPortfolioPage = setPortfolioPage;
 window.duplicateIdea = duplicateIdea;
+window.duplicateInvestor = duplicateInvestor;
 window.deleteIdea = deleteIdea;
+window.deleteInvestor = deleteInvestor;
 window.reserveShares = reserveShares;
+window.sellHoldingUnit = sellHoldingUnit;
+window.deleteHolding = deleteHolding;
 window.removeCalcLine = removeCalcLine;
 window.seedCalculator = seedCalculator;
 
