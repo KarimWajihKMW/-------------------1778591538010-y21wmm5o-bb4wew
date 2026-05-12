@@ -3,34 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مرحباً بك في أكوادرا</title>
+    <meta name="theme-color" content="#17120d">
+    <title>فكرة وشريك | منصّة ابتكار واستثمار المشاريع</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-      body {
-        font-family: 'Cairo', sans-serif;
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ink: '#17120d',
+              espresso: '#25180f',
+              amberlux: '#c9944c',
+              champagne: '#fff4db',
+              pearl: '#fffaf0',
+              emeraldlux: '#17594a',
+              rosewood: '#8a3d2d'
+            },
+            boxShadow: {
+              perfume: '0 28px 90px rgba(23,18,13,.28)',
+              gold: '0 18px 48px rgba(201,148,76,.28)'
+            }
+          }
+        }
       }
-    </style>
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Noto+Kufi+Arabic:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen text-gray-800">
-    <div class="max-w-md w-full text-center p-6">
-        <h1 class="text-3xl font-bold text-slate-800 mb-4 tracking-tight">مرحباً بك في أكوادرا</h1>
-        <p class="text-gray-600 mb-8">
-            المنشئ الخارق الذي يساعدك على بناء تطبيقات جميلة باستخدام Tailwind CSS.
-        </p>
-        
-        <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100 hover:scale-105 transition-all duration-300 cursor-pointer card group">
-            <div class="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mx-auto mb-4 group-hover:bg-indigo-100 transition-colors">
-                 <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
-            </div>
-            <h2 class="text-xl font-semibold text-gray-900 mb-2">جاهز للبناء</h2>
-            <p class="text-gray-500 text-sm">اطلب من الذكاء الاصطناعي تغيير هذا التصميم أو بناء شيء جديد كلياً.</p>
-        </div>
-        
-        <div class="mt-8 text-sm text-gray-400">
-            مدعوم بواسطة Gemini 3 Pro
-        </div>
+<body class="min-h-screen bg-[#17120d] text-pearl selection:bg-amberlux selection:text-ink">
+    <div class="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        <div class="absolute -top-32 right-[-7rem] h-96 w-96 rounded-full bg-amberlux/20 blur-3xl animate-floatMist"></div>
+        <div class="absolute top-1/3 left-[-10rem] h-[34rem] w-[34rem] rounded-full bg-emeraldlux/20 blur-3xl animate-floatMist animation-delay-2000"></div>
+        <div class="scent-grid absolute inset-0 opacity-35"></div>
+        <div class="grain absolute inset-0 opacity-[.13]"></div>
     </div>
+
+    <div id="route-progress" class="fixed left-0 top-0 z-[80] h-1 w-0 bg-gradient-to-r from-amberlux via-champagne to-emeraldlux transition-all duration-500"></div>
+
+    <header class="sticky top-0 z-50 border-b border-champagne/10 bg-ink/72 backdrop-blur-2xl">
+        <nav class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <a href="/" data-link class="group flex items-center gap-3 rounded-full focus:outline-none focus:ring-2 focus:ring-amberlux focus:ring-offset-2 focus:ring-offset-ink">
+                <span class="relative grid h-12 w-12 place-items-center rounded-2xl border border-amberlux/40 bg-gradient-to-br from-champagne/15 to-amberlux/10 shadow-gold transition-transform duration-300 group-hover:rotate-6 group-hover:scale-105">
+                    <span class="absolute inset-2 rounded-xl border border-champagne/15"></span>
+                    <span class="font-display text-2xl text-amberlux">ف</span>
+                </span>
+                <span>
+                    <span class="block font-display text-2xl leading-none text-champagne">فكرة وشريك</span>
+                    <span class="text-[11px] tracking-[.25em] text-amberlux/80">IDEA & PARTNER</span>
+                </span>
+            </a>
+
+            <button id="menu-toggle" class="lg:hidden rounded-2xl border border-champagne/15 bg-white/5 p-3 text-champagne transition hover:bg-amberlux/20 focus:outline-none focus:ring-2 focus:ring-amberlux" aria-label="فتح القائمة">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+
+            <div id="nav-links" class="hidden absolute left-4 right-4 top-[5.2rem] flex-col gap-2 rounded-3xl border border-champagne/10 bg-espresso/95 p-4 shadow-perfume lg:static lg:flex lg:flex-row lg:items-center lg:bg-transparent lg:p-0 lg:shadow-none">
+                <a href="/ideas" data-link class="nav-link">الأفكار</a>
+                <a href="/market-map" data-link class="nav-link">خريطة النجاح</a>
+                <a href="/equipment-calculator" data-link class="nav-link">حاسبة المعدات</a>
+                <a href="/projects" data-link class="nav-link">سوق الأسهم</a>
+                <a href="/investors" data-link class="nav-link">المستثمرون</a>
+                <a href="/dashboard" data-link class="nav-link">لوحة التحكم</a>
+            </div>
+
+            <a href="/projects/new" data-link class="hidden rounded-full bg-gradient-to-l from-amberlux to-champagne px-5 py-3 text-sm font-bold text-ink shadow-gold transition duration-300 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-champagne focus:ring-offset-2 focus:ring-offset-ink md:inline-flex">اطرح مشروعك</a>
+        </nav>
+    </header>
+
+    <main id="app" class="relative z-10 min-h-[calc(100vh-92px)]"></main>
+
+    <div id="toast" class="fixed bottom-6 left-1/2 z-[90] hidden -translate-x-1/2 rounded-full border border-amberlux/30 bg-espresso/95 px-5 py-3 text-sm text-champagne shadow-perfume backdrop-blur-xl"></div>
+
+    <div id="modal-root" class="fixed inset-0 z-[100] hidden items-center justify-center bg-ink/75 p-4 backdrop-blur-md"></div>
+
+    <footer class="relative z-10 border-t border-champagne/10 bg-espresso/60">
+        <div class="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-4 lg:px-8">
+            <div class="md:col-span-2">
+                <h2 class="font-display text-3xl text-champagne">فكرة وشريك</h2>
+                <p class="mt-3 max-w-xl text-sm leading-7 text-champagne/65">منصة عربية تجمع بين ذكاء اختيار الفكرة، دقة حساب المعدات، وشفافية طرح حصص استثمارية لأصحاب رؤوس الأموال.</p>
+            </div>
+            <div>
+                <h3 class="mb-3 text-sm font-bold text-amberlux">مسارات المنصة</h3>
+                <div class="space-y-2 text-sm text-champagne/65">
+                    <a href="/ideas" data-link class="footer-link">استكشاف الأفكار</a>
+                    <a href="/projects" data-link class="footer-link">المشاريع المتاحة</a>
+                    <a href="/dashboard/reports" data-link class="footer-link">تقارير الأداء</a>
+                </div>
+            </div>
+            <div>
+                <h3 class="mb-3 text-sm font-bold text-amberlux">تواصل سريع</h3>
+                <a href="mailto:partners@fikra.app" class="footer-link">partners@fikra.app</a>
+                <p class="mt-2 text-sm text-champagne/50">الرياض، جدة، الدمام، القاهرة، دبي</p>
+            </div>
+        </div>
+    </footer>
+
     <script src="script.js"></script>
 </body>
 </html>
