@@ -29,9 +29,15 @@ let investors = investorSeeds.map(investor => ({ ...investor, portfolio: investo
 let filters = { query: '', type: 'الكل', region: 'الكل', status: 'الكل', sort: 'success-desc', page: 1 };
 let investorFilters = { query: '', type: 'الكل', region: 'الكل', risk: 'الكل', sort: 'capital-desc', page: 1 };
 let portfolioFilters = { query: '', status: 'الكل', sort: 'value-desc', page: 1 };
+let performanceFilters = { range: '12', metric: 'value', sort: 'month-asc', page: 1 };
 let compareFilters = { query: '', region: 'الكل', risk: 'الكل', sort: 'roi-desc', page: 1, selected: [1, 2, 3] };
 let projectsPage = 1;
 let calculatorLines = [];
+let performanceNotes = {
+  '1-2024-07': 'إعادة وزن المحفظة نحو التجزئة الفاخرة رفعت المسار الشهري.',
+  '3-2024-09': 'زيادة التعرض للطاقة والتنقل حسنت القيمة السوقية.',
+  '6-2024-10': 'توسع عيادة التجميل رفع الأداء فوق الهدف.'
+};
 const pageSize = 6;
 
 const formatMoney = value => new Intl.NumberFormat('ar-SA', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(value);
@@ -499,6 +505,85 @@ function portfolioFilterBar(investor) {
   </div>`;
 }
 
+function formatPerformanceMonth(monthKey) {
+  const [year, month] = monthKey.split('-');
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' });
+}
+
+function getPortfolioPerformanceSeries(investor) {
+  const metrics = getInvestorMetrics(investor);
+  const finalValue = Math.max(1, metrics.current);
+  const startValue = Math.max(1, Math.round(finalValue / (1 + Math.max(metrics.roi, -45) / 100)));
+  const points = [];
+  const now = new Date(2024, 11, 1);
+  for (let i = 17; i >= 0; i -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const progress = (17 - i) / 17;
+    const seasonal = Math.sin((investor.id + progress * 8) * 1.25) * 0.028;
+    const value = Math.round(startValue + (finalValue - startValue) * Math.pow(progress, 1.18) + finalValue * seasonal);
+    const invested = Math.max(1, Math.round(metrics.invested * (0.72 + progress * 0.28)));
+    const roi = Math.round(((value - invested) / invested) * 100);
+    const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    points.push({ month, label: formatPerformanceMonth(month), value: Math.max(1, value), invested, roi, note: performanceNotes[`${investor.id}-${month}`] || '' });
+  }
+  return points;
+}
+
+function getFilteredPerformancePoints(investor) {
+  const range = Number(performanceFilters.range);
+  let list = getPortfolioPerformanceSeries(investor).slice(-range);
+  const [key, dir] = performanceFilters.sort.split('-');
+  list.sort((a, b) => {
+    const map = { month: [new Date(a.month + '-01').getTime(), new Date(b.month + '-01').getTime()], value: [a.value, b.value], roi: [a.roi, b.roi], invested: [a.invested, b.invested] };
+    const [av, bv] = map[key] || map.month;
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+  return list;
+}
+
+function performanceFilterBar() {
+  return `<div class="lux-card mb-8 rounded-[2rem] p-4"><div class="grid gap-3 md:grid-cols-4">
+    <select id="performance-range" class="select-lux"><option value="6" ${performanceFilters.range==='6'?'selected':''}>آخر 6 أشهر</option><option value="12" ${performanceFilters.range==='12'?'selected':''}>آخر 12 شهر</option><option value="18" ${performanceFilters.range==='18'?'selected':''}>آخر 18 شهر</option></select>
+    <select id="performance-metric" class="select-lux"><option value="value" ${performanceFilters.metric==='value'?'selected':''}>القيمة السوقية</option><option value="roi" ${performanceFilters.metric==='roi'?'selected':''}>العائد المحقق</option></select>
+    <select id="performance-sort" class="select-lux"><option value="month-asc" ${performanceFilters.sort==='month-asc'?'selected':''}>الأقدم أولاً</option><option value="month-desc" ${performanceFilters.sort==='month-desc'?'selected':''}>الأحدث أولاً</option><option value="value-desc" ${performanceFilters.sort==='value-desc'?'selected':''}>الأعلى قيمة</option><option value="roi-desc" ${performanceFilters.sort==='roi-desc'?'selected':''}>الأعلى عائداً</option></select>
+    <button class="btn-primary" onclick="openPerformanceNoteModal()">إضافة ملاحظة أداء</button>
+  </div></div>`;
+}
+
+function performanceChart(points, metric) {
+  const chartPoints = [...points].sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'));
+  const values = chartPoints.map(point => metric === 'roi' ? point.roi : point.value);
+  const min = Math.min(...values), max = Math.max(...values), spread = Math.max(1, max - min);
+  const coords = chartPoints.map((point, index) => {
+    const raw = metric === 'roi' ? point.roi : point.value;
+    return { ...point, raw, x: chartPoints.length === 1 ? 50 : 40 + (index / (chartPoints.length - 1)) * 520, y: 250 - ((raw - min) / spread) * 190 };
+  });
+  const line = coords.map(point => `${point.x},${point.y}`).join(' ');
+  const area = coords.length ? `40,270 ${line} 560,270` : '';
+  const formatter = metric === 'roi' ? value => `${value}%` : formatMoney;
+  return `<div class="performance-chart lux-card rounded-[2.2rem] p-5"><div class="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-center"><div><h2 class="text-2xl font-black text-champagne">الرسم البياني الزمني</h2><p class="mt-2 text-sm text-champagne/55">المؤشر الحالي: ${metric === 'roi' ? 'العائد المحقق' : 'القيمة السوقية للمحفظة'}</p></div><span class="rounded-full bg-amberlux/15 px-4 py-2 text-sm font-black text-amberlux">${chartPoints.length} نقاط شهرية</span></div><svg class="h-[340px] w-full overflow-visible" viewBox="0 0 600 320" role="img" aria-label="رسم زمني لأداء المحفظة"><defs><linearGradient id="portfolioArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#c9944c" stop-opacity="0.38"/><stop offset="100%" stop-color="#17594a" stop-opacity="0.04"/></linearGradient></defs><g class="chart-grid">${[70,120,170,220,270].map(y => `<line x1="40" x2="560" y1="${y}" y2="${y}"/>`).join('')}</g><polygon points="${area}" fill="url(#portfolioArea)"></polygon><polyline points="${line}" fill="none" stroke="#c9944c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></polyline>${coords.map(point => `<g><circle cx="${point.x}" cy="${point.y}" r="7" class="chart-dot"></circle><title>${point.label}: ${formatter(point.raw)}</title></g>`).join('')}<text x="40" y="42" class="chart-value">${formatter(max)}</text><text x="40" y="292" class="chart-value">${formatter(min)}</text></svg></div>`;
+}
+
+function portfolioPerformancePage(id) {
+  const investor = investors.find(i => i.id === Number(id)) || investors[0];
+  const points = getFilteredPerformancePoints(investor);
+  const chronological = [...points].sort((a, b) => new Date(a.month + '-01') - new Date(b.month + '-01'));
+  const first = chronological[0], last = chronological[chronological.length - 1];
+  const changeValue = first && last ? last.value - first.value : 0;
+  const changeRoi = first && last ? last.roi - first.roi : 0;
+  const totalPages = Math.max(1, Math.ceil(points.length / 6));
+  performanceFilters.page = Math.min(performanceFilters.page, totalPages);
+  const pageItems = points.slice((performanceFilters.page - 1) * 6, performanceFilters.page * 6);
+  return shell(`
+    <div class="mb-6 flex flex-wrap gap-3"><a href="/investors/${investor.id}/portfolio" data-link class="btn-ghost">العودة للمحفظة</a><a href="/investors/compare" data-link class="btn-secondary">مقارنة المحافظ</a><button class="btn-primary" onclick="openPerformanceNoteModal(${investor.id}, '${last?.month || ''}')">إضافة ملاحظة للشهر الحالي</button></div>
+    ${pageHeader(`أداء محفظة ${investor.name} زمنياً`, 'رسم بياني زمني يوضح تطور القيمة السوقية والعائد المحقق للمحفظة مع فلترة النطاق وفرز النقاط وإدارة ملاحظات الأداء الشهرية.')}
+    <div class="grid gap-5 md:grid-cols-4">${miniMetric('القيمة الحالية', formatMoney(last?.value || 0), 'text-amberlux')}${miniMetric('تغير القيمة', formatMoney(changeValue), changeValue >= 0 ? 'text-emerald-200' : 'text-red-200')}${miniMetric('العائد الحالي', (last?.roi || 0) + '%', (last?.roi || 0) >= 0 ? 'text-emerald-200' : 'text-red-200')}${miniMetric('تغير العائد', changeRoi + ' نقطة', changeRoi >= 0 ? 'text-emerald-200' : 'text-red-200')}</div>
+    ${performanceFilterBar()}
+    ${performanceChart(points, performanceFilters.metric)}
+    <div class="lux-card mt-8 rounded-[2.2rem] p-4"><div class="mb-4 flex items-center justify-between gap-3"><h2 class="text-2xl font-black text-champagne">نقاط الأداء الشهرية</h2><span class="rounded-full bg-emeraldlux/25 px-3 py-1 text-xs font-bold text-emerald-100">فرز + صفحات + إجراءات</span></div><div class="table-scroll overflow-x-auto"><table class="w-full min-w-[920px] text-sm"><thead><tr class="text-champagne/55"><th class="p-4 text-right">الشهر</th><th class="p-4">القيمة السوقية</th><th class="p-4">إجمالي المستثمر</th><th class="p-4">العائد</th><th class="p-4 text-right">ملاحظة الأداء</th><th class="p-4">الإجراءات</th></tr></thead><tbody>${pageItems.map(point => `<tr class="border-t border-champagne/10 transition hover:bg-white/5"><td class="p-4 font-black text-champagne">${point.label}</td><td class="p-4 text-center font-black text-amberlux">${formatMoney(point.value)}</td><td class="p-4 text-center">${formatMoney(point.invested)}</td><td class="p-4 text-center font-black ${point.roi >= 0 ? 'text-emerald-200' : 'text-red-200'}">${point.roi}%</td><td class="p-4 text-champagne/65">${point.note || 'لا توجد ملاحظة'}</td><td class="p-4"><div class="flex flex-wrap justify-center gap-2"><button class="btn-ghost !px-3 !py-2" onclick="showPerformancePoint(${investor.id}, '${point.month}')">عرض</button><button class="btn-secondary !px-3 !py-2" onclick="openPerformanceNoteModal(${investor.id}, '${point.month}')">تعديل</button><button class="btn-danger !px-3 !py-2" onclick="deletePerformanceNote(${investor.id}, '${point.month}')">حذف الملاحظة</button></div></td></tr>`).join('')}</tbody></table></div>${pagination(performanceFilters.page, totalPages, 'setPerformancePage')}</div>
+  `);
+}
+
 function investorPortfolioPage(id) {
   const investor = investors.find(i => i.id === Number(id)) || investors[0];
   const metrics = getInvestorMetrics(investor);
@@ -508,7 +593,7 @@ function investorPortfolioPage(id) {
   const pageRows = rows.slice((portfolioFilters.page - 1) * 5, portfolioFilters.page * 5);
   const allocationTotal = Math.max(1, metrics.current);
   return shell(`
-    <div class="mb-6 flex flex-wrap gap-3"><a href="/investors" data-link class="btn-ghost">العودة للمستثمرين</a><a href="/investors/${investor.id}" data-link class="btn-secondary">رابط صفحة المستثمر</a><button class="btn-primary" onclick="openInvestorModal(${investor.id})">تعديل بيانات المستثمر</button></div>
+    <div class="mb-6 flex flex-wrap gap-3"><a href="/investors" data-link class="btn-ghost">العودة للمستثمرين</a><a href="/investors/${investor.id}" data-link class="btn-secondary">رابط صفحة المستثمر</a><a href="/investors/${investor.id}/portfolio/performance" data-link class="btn-primary">الرسم الزمني للأداء</a><button class="btn-secondary" onclick="openInvestorModal(${investor.id})">تعديل بيانات المستثمر</button></div>
     ${pageHeader(`محفظة ${investor.name}`, 'صفحة محفظة استثمارية مستقلة تعرض المشاريع والحصص والقيمة والأداء مع فلترة وفرز وصفحات وإجراءات CRUD لكل أصل.')}
     <div class="grid gap-5 md:grid-cols-4">${miniMetric('رأس المال المتاح', formatMoney(investor.capital), 'text-champagne')}${miniMetric('القيمة الحالية', formatMoney(metrics.current), 'text-amberlux')}${miniMetric('إجمالي المستثمر', formatMoney(metrics.invested), 'text-champagne')}${miniMetric('العائد المحقق', metrics.roi + '%', metrics.roi >= 0 ? 'text-emerald-200' : 'text-red-200')}</div>
     <div class="lux-card mt-8 rounded-[2.2rem] p-6"><div class="grid gap-4 md:grid-cols-4"><div><p class="text-xs text-champagne/50">نوع المستثمر</p><p class="mt-2 font-black text-champagne">${investor.type}</p></div><div><p class="text-xs text-champagne/50">المنطقة</p><p class="mt-2 font-black text-champagne">${investor.region}</p></div><div><p class="text-xs text-champagne/50">مستوى المخاطر</p><p class="mt-2 font-black text-champagne">${investor.risk}</p></div><div><p class="text-xs text-champagne/50">التفضيل</p><p class="mt-2 font-black text-champagne">${investor.preferred}</p></div></div></div>
@@ -618,12 +703,17 @@ function bindFilters() {
     const el = document.getElementById(id);
     if (el) el.addEventListener(key === 'query' ? 'input' : 'change', e => { compareFilters[key] = e.target.value; compareFilters.page = 1; renderRoute(false); });
   });
+  [['performance-range','range'], ['performance-metric','metric'], ['performance-sort','sort']].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', e => { performanceFilters[key] = e.target.value; performanceFilters.page = 1; renderRoute(false); });
+  });
 }
 
 function setIdeaPage(p) { filters.page = p; renderRoute(); }
 function setProjectsPage(p) { projectsPage = p; renderRoute(); }
 function setInvestorPage(p) { investorFilters.page = p; renderRoute(); }
 function setPortfolioPage(p) { portfolioFilters.page = p; renderRoute(); }
+function setPerformancePage(p) { performanceFilters.page = p; renderRoute(); }
 function setComparePage(p) { compareFilters.page = p; renderRoute(); }
 function toggleCompareInvestor(id, navigateToCompare = false) {
   if (compareFilters.selected.includes(id)) compareFilters.selected = compareFilters.selected.filter(item => item !== id);
@@ -641,6 +731,25 @@ function deleteInvestor(id) { if (confirm('هل تريد حذف المستثمر
 function reserveShares(id) { const item = ideas.find(i => i.id === id); if (item && item.shares > 0) { item.shares -= 1; showToast('تم حجز حصة استثمارية واحدة'); renderRoute(); } }
 function sellHoldingUnit(investorId, holdingId) { const investor = investors.find(i => i.id === investorId); const holding = investor?.portfolio.find(h => h.id === holdingId); if (holding && holding.units > 1) { holding.units -= 1; holding.currentValue = Math.max(holding.entryPrice, holding.currentValue - holding.entryPrice); holding.status = 'مباعة جزئياً'; showToast('تم بيع حصة من المحفظة'); renderRoute(false); } else { deleteHolding(investorId, holdingId); } }
 function deleteHolding(investorId, holdingId) { if (confirm('هل تريد حذف هذا الأصل من المحفظة؟')) { investors = investors.map(investor => investor.id === investorId ? { ...investor, portfolio: investor.portfolio.filter(h => h.id !== holdingId) } : investor); showToast('تم حذف الأصل من المحفظة'); renderRoute(false); } }
+function showPerformancePoint(investorId, month) { const investor = investors.find(i => i.id === investorId); const point = investor ? getPortfolioPerformanceSeries(investor).find(item => item.month === month) : null; if (point) showToast(`${point.label}: ${formatMoney(point.value)} • عائد ${point.roi}%`); }
+function openPerformanceNoteModal(investorId, month) {
+  const pathParts = location.pathname.split('/');
+  const resolvedInvestorId = investorId || Number(pathParts[2]) || investors[0].id;
+  const investor = investors.find(i => i.id === resolvedInvestorId) || investors[0];
+  const points = getPortfolioPerformanceSeries(investor);
+  const selectedMonth = month || points[points.length - 1]?.month;
+  const key = `${investor.id}-${selectedMonth}`;
+  const modal = document.getElementById('modal-root');
+  modal.innerHTML = `<div class="w-full max-w-2xl rounded-[2rem] border border-champagne/15 bg-espresso p-5 shadow-perfume"><div class="mb-4 flex items-center justify-between"><h2 class="text-2xl font-black text-champagne">ملاحظة أداء شهرية</h2><button class="btn-ghost" onclick="closeModal()">إغلاق</button></div><form id="performance-note-form" class="grid gap-3"><select name="month" class="select-lux">${points.map(point => `<option value="${point.month}" ${point.month===selectedMonth?'selected':''}>${point.label}</option>`).join('')}</select><textarea name="note" rows="4" class="textarea-lux" placeholder="اكتب سبب الارتفاع أو الانخفاض وخطوة المتابعة">${performanceNotes[key] || ''}</textarea><button class="btn-primary" type="submit">حفظ الملاحظة</button></form></div>`;
+  modal.classList.remove('hidden'); modal.classList.add('flex');
+  document.getElementById('performance-note-form').addEventListener('submit', e => {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(e.target).entries());
+    performanceNotes[`${investor.id}-${data.month}`] = data.note.trim();
+    closeModal(); showToast('تم حفظ ملاحظة الأداء'); renderRoute(false);
+  });
+}
+function deletePerformanceNote(investorId, month) { const key = `${investorId}-${month}`; if (performanceNotes[key] && confirm('هل تريد حذف ملاحظة الأداء؟')) { delete performanceNotes[key]; showToast('تم حذف الملاحظة'); renderRoute(false); } else if (!performanceNotes[key]) showToast('لا توجد ملاحظة لهذا الشهر'); }
 function removeCalcLine(idx) { calculatorLines.splice(idx, 1); renderRoute(false); }
 function seedCalculator() { calculatorLines = [{name:'معدات أساسية', category:'معدات', qty:1, cost:85000},{name:'ترخيص وإجراءات', category:'تراخيص', qty:1, cost:22000},{name:'منصة حجز ودفع', category:'تقنية', qty:1, cost:34000},{name:'إطلاق وتسويق', category:'تسويق', qty:1, cost:18000}]; renderRoute(false); }
 
@@ -669,6 +778,7 @@ function renderRoute(scroll = true) {
   else if (path === '/projects/new') content = newProjectPage();
   else if (path === '/investors') content = investorsPage();
   else if (path.match(/^\/investors\/compare(\/[\d-]+)?$/)) content = portfolioComparisonPage(path.split('/')[3]);
+  else if (path.match(/^\/investors\/\d+\/portfolio\/performance$/)) content = portfolioPerformancePage(path.split('/')[2]);
   else if (path.match(/^\/investors\/\d+(\/portfolio)?$/)) content = investorPortfolioPage(path.split('/')[2]);
   else if (path.startsWith('/dashboard')) content = dashboardPage();
   else content = hero();
@@ -698,6 +808,7 @@ window.setIdeaPage = setIdeaPage;
 window.setProjectsPage = setProjectsPage;
 window.setInvestorPage = setInvestorPage;
 window.setPortfolioPage = setPortfolioPage;
+window.setPerformancePage = setPerformancePage;
 window.setComparePage = setComparePage;
 window.toggleCompareInvestor = toggleCompareInvestor;
 window.resetCompareSelection = resetCompareSelection;
@@ -709,6 +820,9 @@ window.deleteInvestor = deleteInvestor;
 window.reserveShares = reserveShares;
 window.sellHoldingUnit = sellHoldingUnit;
 window.deleteHolding = deleteHolding;
+window.showPerformancePoint = showPerformancePoint;
+window.openPerformanceNoteModal = openPerformanceNoteModal;
+window.deletePerformanceNote = deletePerformanceNote;
 window.removeCalcLine = removeCalcLine;
 window.seedCalculator = seedCalculator;
 
