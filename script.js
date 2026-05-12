@@ -29,6 +29,7 @@ let investors = investorSeeds.map(investor => ({ ...investor, portfolio: investo
 let filters = { query: '', type: 'الكل', region: 'الكل', status: 'الكل', sort: 'success-desc', page: 1 };
 let investorFilters = { query: '', type: 'الكل', region: 'الكل', risk: 'الكل', sort: 'capital-desc', page: 1 };
 let portfolioFilters = { query: '', status: 'الكل', sort: 'value-desc', page: 1 };
+let compareFilters = { query: '', region: 'الكل', risk: 'الكل', sort: 'roi-desc', page: 1, selected: [1, 2, 3] };
 let projectsPage = 1;
 let calculatorLines = [];
 const pageSize = 6;
@@ -277,6 +278,31 @@ function getInvestorMetrics(investor) {
   return { invested, current, roi, count: investor.portfolio.length };
 }
 
+function getInvestorPortfolioProfile(investor) {
+  const rows = investor.portfolio.map(holding => {
+    const project = ideas.find(i => i.id === Number(holding.projectId));
+    const invested = holding.units * holding.entryPrice;
+    const performance = invested ? Math.round(((holding.currentValue - invested) / invested) * 100) : 0;
+    return { ...holding, project, invested, performance };
+  });
+  const totals = getInvestorMetrics(investor);
+  const byType = rows.reduce((acc, row) => {
+    const key = row.project?.type || 'غير مصنف';
+    acc[key] = (acc[key] || 0) + row.currentValue;
+    return acc;
+  }, {});
+  const byRegion = rows.reduce((acc, row) => {
+    const key = row.project?.region || 'غير محدد';
+    acc[key] = (acc[key] || 0) + row.currentValue;
+    return acc;
+  }, {});
+  const topHolding = [...rows].sort((a, b) => b.currentValue - a.currentValue)[0];
+  const topSector = Object.entries(byType).sort((a, b) => b[1] - a[1])[0]?.[0] || 'لا يوجد';
+  const topRegion = Object.entries(byRegion).sort((a, b) => b[1] - a[1])[0]?.[0] || 'لا يوجد';
+  const diversification = new Set(rows.map(row => row.project?.type).filter(Boolean)).size;
+  return { rows, totals, byType, byRegion, topHolding, topSector, topRegion, diversification };
+}
+
 function getFilteredInvestors() {
   const q = investorFilters.query.trim().toLowerCase();
   let list = investors.filter(investor =>
@@ -321,6 +347,7 @@ function investorsPage() {
   const pageItems = list.slice((investorFilters.page - 1) * pageSize, investorFilters.page * pageSize);
   return shell(`
     ${pageHeader('بوابة المستثمرين', 'صفحة إدارة المستثمرين مع فرز وفلاتر وصفحات، ولكل مستثمر محفظة استثمارية مستقلة بروابط عميقة وإجراءات كاملة.')}
+    <div class="mb-6 flex flex-wrap gap-3"><a href="/investors/compare" data-link class="btn-primary">مقارنة محافظ المستثمرين</a><a href="/investors/1/portfolio" data-link class="btn-ghost">فتح محفظة نموذجية</a></div>
     ${investorFilterBar()}
     <div class="grid gap-6 lg:grid-cols-3">
       ${pageItems.map(investorCard).join('') || `<div class="lux-card rounded-[2rem] p-8 text-center text-champagne/55 lg:col-span-3">لا يوجد مستثمرون مطابقون للبحث</div>`}
@@ -337,8 +364,107 @@ function investorCard(investor) {
     <p class="mt-4 text-sm leading-7 text-champagne/62">يفضل الاستثمار في ${investor.preferred} ويستهدف عائداً سنوياً يقارب ${investor.targetRoi}%.</p>
     <div class="mt-5 grid grid-cols-2 gap-3"><div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-champagne/50">رأس المال</p><p class="mt-2 font-black text-champagne">${formatMoney(investor.capital)}</p></div><div class="rounded-2xl bg-white/5 p-4"><p class="text-xs text-champagne/50">أداء المحفظة</p><p class="mt-2 font-black ${metrics.roi >= 0 ? 'text-emerald-200' : 'text-red-200'}">${metrics.roi}%</p></div></div>
     <div class="mt-5 rounded-2xl bg-white/5 p-4"><p class="text-xs text-champagne/50">قيمة المحفظة الحالية</p><p class="mt-2 text-3xl font-black text-amberlux">${formatMoney(metrics.current)}</p><p class="mt-1 text-xs text-champagne/50">${metrics.count} مشاريع ضمن المحفظة</p></div>
-    <div class="mt-5 grid grid-cols-2 gap-2"><button class="btn-primary" onclick="navigate('/investors/${investor.id}/portfolio')">فتح المحفظة</button><button class="btn-secondary" onclick="openInvestorModal(${investor.id})">تعديل</button><button class="btn-ghost" onclick="duplicateInvestor(${investor.id})">نسخ</button><button class="btn-danger" onclick="deleteInvestor(${investor.id})">حذف</button></div>
+    <div class="mt-5 grid grid-cols-2 gap-2"><button class="btn-primary" onclick="navigate('/investors/${investor.id}/portfolio')">فتح المحفظة</button><button class="btn-secondary" onclick="openInvestorModal(${investor.id})">تعديل</button><button class="btn-ghost" onclick="toggleCompareInvestor(${investor.id}, true)">قارن</button><button class="btn-danger" onclick="deleteInvestor(${investor.id})">حذف</button></div>
   </article>`;
+}
+
+function getCompareCandidates() {
+  const q = compareFilters.query.trim().toLowerCase();
+  let list = investors.filter(investor =>
+    (!q || [investor.name, investor.type, investor.region, investor.preferred, investor.risk].join(' ').toLowerCase().includes(q)) &&
+    (compareFilters.region === 'الكل' || investor.region === compareFilters.region) &&
+    (compareFilters.risk === 'الكل' || investor.risk === compareFilters.risk)
+  );
+  const [key, dir] = compareFilters.sort.split('-');
+  list.sort((a, b) => {
+    const aMetrics = getInvestorMetrics(a);
+    const bMetrics = getInvestorMetrics(b);
+    const aProfile = getInvestorPortfolioProfile(a);
+    const bProfile = getInvestorPortfolioProfile(b);
+    const map = { capital: [a.capital, b.capital], current: [aMetrics.current, bMetrics.current], roi: [aMetrics.roi, bMetrics.roi], diversity: [aProfile.diversification, bProfile.diversification], count: [aMetrics.count, bMetrics.count] };
+    const [av, bv] = map[key] || [aMetrics.roi, bMetrics.roi];
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+  return list;
+}
+
+function compareFilterBar() {
+  const regions = ['الكل', ...new Set(investors.map(i => i.region))];
+  const risks = ['الكل', ...new Set(investors.map(i => i.risk))];
+  return `<div class="lux-card mb-8 rounded-[2rem] p-4">
+    <div class="grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr_auto]">
+      <input id="compare-query" class="input-lux" placeholder="ابحث عن مستثمر لإضافته للمقارنة" value="${compareFilters.query}">
+      ${select('compare-region', regions, compareFilters.region)}
+      ${select('compare-risk', risks, compareFilters.risk)}
+      <select id="compare-sort" class="select-lux"><option value="roi-desc" ${compareFilters.sort==='roi-desc'?'selected':''}>الأعلى أداءً</option><option value="current-desc" ${compareFilters.sort==='current-desc'?'selected':''}>الأعلى قيمة محفظة</option><option value="capital-desc" ${compareFilters.sort==='capital-desc'?'selected':''}>الأعلى رأس مال</option><option value="diversity-desc" ${compareFilters.sort==='diversity-desc'?'selected':''}>الأكثر تنوعاً</option><option value="count-desc" ${compareFilters.sort==='count-desc'?'selected':''}>الأكثر مشاريع</option></select>
+      <button class="btn-primary" onclick="openInvestorModal()">إضافة مستثمر</button>
+    </div>
+  </div>`;
+}
+
+function getSelectedCompareInvestors() {
+  return compareFilters.selected.map(id => investors.find(investor => investor.id === Number(id))).filter(Boolean);
+}
+
+function syncCompareSelection(idsSegment) {
+  if (!idsSegment) return;
+  const ids = idsSegment.split('-').map(Number).filter(id => investors.some(investor => investor.id === id));
+  if (ids.length) compareFilters.selected = [...new Set(ids)].slice(0, 4);
+}
+
+function comparisonMetricRow(label, getter, formatter = value => value) {
+  const selected = getSelectedCompareInvestors();
+  return `<tr class="border-t border-champagne/10"><th class="p-4 text-right text-champagne/65">${label}</th>${selected.map(investor => `<td class="p-4 text-center font-black text-champagne">${formatter(getter(investor, getInvestorPortfolioProfile(investor)))}</td>`).join('')}</tr>`;
+}
+
+function portfolioComparisonPage(idsSegment) {
+  syncCompareSelection(idsSegment);
+  if (!getSelectedCompareInvestors().length) compareFilters.selected = investors.slice(0, 3).map(investor => investor.id);
+  const selected = getSelectedCompareInvestors();
+  const profiles = selected.map(investor => ({ investor, profile: getInvestorPortfolioProfile(investor) }));
+  const bestByRoi = [...profiles].sort((a, b) => b.profile.totals.roi - a.profile.totals.roi)[0];
+  const bestByValue = [...profiles].sort((a, b) => b.profile.totals.current - a.profile.totals.current)[0];
+  const bestByDiversity = [...profiles].sort((a, b) => b.profile.diversification - a.profile.diversification)[0];
+  const candidates = getCompareCandidates();
+  const totalPages = Math.max(1, Math.ceil(candidates.length / 5));
+  compareFilters.page = Math.min(compareFilters.page, totalPages);
+  const pageItems = candidates.slice((compareFilters.page - 1) * 5, compareFilters.page * 5);
+  const matrixRows = selected.length ? [
+    comparisonMetricRow('القيمة الحالية', (investor, profile) => profile.totals.current, formatMoney),
+    comparisonMetricRow('إجمالي المستثمر', (investor, profile) => profile.totals.invested, formatMoney),
+    comparisonMetricRow('العائد المحقق', (investor, profile) => profile.totals.roi, value => value + '%'),
+    comparisonMetricRow('عدد المشاريع', (investor, profile) => profile.totals.count),
+    comparisonMetricRow('تنوع القطاعات', (investor, profile) => profile.diversification),
+    comparisonMetricRow('أكبر قطاع', (investor, profile) => profile.topSector),
+    comparisonMetricRow('أقوى منطقة', (investor, profile) => profile.topRegion),
+    comparisonMetricRow('أكبر أصل', (investor, profile) => profile.topHolding?.project?.name || 'لا يوجد')
+  ].join('') : `<tr><td colspan="5" class="p-8 text-center text-champagne/50">اختر مستثمرين من الجدول لبدء المقارنة</td></tr>`;
+  return shell(`
+    <div class="mb-6 flex flex-wrap gap-3"><a href="/investors" data-link class="btn-ghost">العودة للمستثمرين</a><button class="btn-secondary" onclick="resetCompareSelection()">إعادة ضبط المقارنة</button><button class="btn-primary" onclick="applyCompareDeepLink()">حفظ رابط المقارنة</button></div>
+    ${pageHeader('مقارنة محافظ المستثمرين', 'قارن بين محافظ متعددة حسب القيمة الحالية والعائد والتنوع والقطاعات والمناطق، مع رابط عميق مستقل لكل مجموعة مقارنة.')}
+    <div class="grid gap-5 md:grid-cols-3">${miniMetric('أفضل عائد', bestByRoi ? `${bestByRoi.investor.name} • ${bestByRoi.profile.totals.roi}%` : 'لا يوجد', 'text-emerald-200')}${miniMetric('أكبر قيمة', bestByValue ? `${bestByValue.investor.name} • ${formatMoney(bestByValue.profile.totals.current)}` : 'لا يوجد', 'text-amberlux')}${miniMetric('أعلى تنوع', bestByDiversity ? `${bestByDiversity.investor.name} • ${bestByDiversity.profile.diversification} قطاعات` : 'لا يوجد', 'text-champagne')}</div>
+    ${compareFilterBar()}
+    <div class="grid gap-6 xl:grid-cols-[.95fr_1.05fr]">
+      <div class="lux-card rounded-[2.2rem] p-4">
+        <div class="mb-4 flex items-center justify-between gap-3"><h2 class="text-2xl font-black text-champagne">اختيار المستثمرين</h2><span class="rounded-full bg-amberlux/15 px-3 py-1 text-xs font-black text-amberlux">${selected.length}/4 مختارين</span></div>
+        <div class="table-scroll overflow-x-auto"><table class="w-full min-w-[760px] text-sm"><thead><tr class="text-champagne/55"><th class="p-4 text-right">المستثمر</th><th class="p-4">المنطقة</th><th class="p-4">المخاطر</th><th class="p-4">قيمة المحفظة</th><th class="p-4">الأداء</th><th class="p-4">الإجراءات</th></tr></thead><tbody>${pageItems.map(investor => {
+          const metrics = getInvestorMetrics(investor);
+          const isSelected = compareFilters.selected.includes(investor.id);
+          return `<tr class="border-t border-champagne/10 transition hover:bg-white/5"><td class="p-4"><b class="text-champagne">${investor.name}</b><p class="mt-1 text-xs text-amberlux">${investor.type}</p></td><td class="p-4 text-center">${investor.region}</td><td class="p-4 text-center">${investor.risk}</td><td class="p-4 text-center font-black text-amberlux">${formatMoney(metrics.current)}</td><td class="p-4 text-center font-black ${metrics.roi >= 0 ? 'text-emerald-200' : 'text-red-200'}">${metrics.roi}%</td><td class="p-4"><div class="flex flex-wrap justify-center gap-2"><button class="${isSelected ? 'btn-danger' : 'btn-primary'} !px-3 !py-2" onclick="toggleCompareInvestor(${investor.id})">${isSelected ? 'إزالة' : 'إضافة'}</button><button class="btn-ghost !px-3 !py-2" onclick="navigate('/investors/${investor.id}/portfolio')">محفظة</button><button class="btn-secondary !px-3 !py-2" onclick="openInvestorModal(${investor.id})">تعديل</button></div></td></tr>`;
+        }).join('') || `<tr><td colspan="6" class="p-8 text-center text-champagne/50">لا يوجد مستثمرون مطابقون</td></tr>`}</tbody></table></div>
+        ${pagination(compareFilters.page, totalPages, 'setComparePage')}
+      </div>
+      <div class="lux-card rounded-[2.2rem] p-4">
+        <h2 class="mb-4 text-2xl font-black text-champagne">لوحة المقارنة المباشرة</h2>
+        <div class="table-scroll overflow-x-auto"><table class="w-full min-w-[820px] text-sm"><thead><tr class="text-champagne/55"><th class="p-4 text-right">المؤشر</th>${selected.map(investor => `<th class="p-4 text-center"><span class="text-champagne">${investor.name}</span><button class="btn-danger mt-2 !px-3 !py-1" onclick="toggleCompareInvestor(${investor.id})">إزالة</button></th>`).join('')}</tr></thead><tbody>${matrixRows}</tbody></table></div>
+      </div>
+    </div>
+    <div class="mt-8 grid gap-6 lg:grid-cols-3">${selected.map(investor => {
+      const profile = getInvestorPortfolioProfile(investor);
+      const allocationTotal = Math.max(1, profile.totals.current);
+      return `<article class="lux-card rounded-[2.2rem] p-6"><div class="flex items-start justify-between gap-3"><div><h3 class="text-2xl font-black text-champagne">${investor.name}</h3><p class="mt-1 text-xs text-amberlux">${investor.type} • ${investor.region}</p></div><button class="btn-ghost !px-3 !py-2" onclick="navigate('/investors/${investor.id}/portfolio')">تفاصيل</button></div><p class="mt-4 text-sm leading-7 text-champagne/62">توزيع حسب القطاعات داخل المحفظة الحالية.</p><div class="mt-5 space-y-4">${Object.entries(profile.byType).map(([type, value]) => `<div><div class="mb-2 flex justify-between gap-3 text-xs"><span class="text-champagne/70">${type}</span><b class="text-amberlux">${Math.round((value / allocationTotal) * 100)}%</b></div><div class="h-2 overflow-hidden rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-l from-emeraldlux via-amberlux to-champagne" style="width:${Math.max(6, Math.round((value / allocationTotal) * 100))}%"></div></div></div>`).join('') || '<p class="text-sm text-champagne/55">لا توجد أصول بعد.</p>'}</div></article>`;
+    }).join('')}</div>
+  `);
 }
 
 function getPortfolioRows(investor) {
@@ -488,12 +614,26 @@ function bindFilters() {
     const el = document.getElementById(id);
     if (el) el.addEventListener(key === 'query' ? 'input' : 'change', e => { portfolioFilters[key] = e.target.value; portfolioFilters.page = 1; renderRoute(false); });
   });
+  [['compare-query','query'], ['compare-region','region'], ['compare-risk','risk'], ['compare-sort','sort']].forEach(([id, key]) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener(key === 'query' ? 'input' : 'change', e => { compareFilters[key] = e.target.value; compareFilters.page = 1; renderRoute(false); });
+  });
 }
 
 function setIdeaPage(p) { filters.page = p; renderRoute(); }
 function setProjectsPage(p) { projectsPage = p; renderRoute(); }
 function setInvestorPage(p) { investorFilters.page = p; renderRoute(); }
 function setPortfolioPage(p) { portfolioFilters.page = p; renderRoute(); }
+function setComparePage(p) { compareFilters.page = p; renderRoute(); }
+function toggleCompareInvestor(id, navigateToCompare = false) {
+  if (compareFilters.selected.includes(id)) compareFilters.selected = compareFilters.selected.filter(item => item !== id);
+  else if (compareFilters.selected.length < 4) compareFilters.selected.push(id);
+  else { compareFilters.selected.shift(); compareFilters.selected.push(id); }
+  if (navigateToCompare) navigate('/investors/compare/' + compareFilters.selected.join('-'));
+  else renderRoute(false);
+}
+function resetCompareSelection() { compareFilters.selected = investors.slice(0, 3).map(investor => investor.id); navigate('/investors/compare'); }
+function applyCompareDeepLink() { navigate('/investors/compare/' + compareFilters.selected.join('-')); showToast('تم تحديث رابط المقارنة'); }
 function duplicateIdea(id) { const item = ideas.find(i => i.id === id); if (item) { ideas.unshift({ ...item, id: Date.now(), name: item.name + ' - نسخة' }); showToast('تم نسخ الفكرة'); renderRoute(); } }
 function duplicateInvestor(id) { const investor = investors.find(i => i.id === id); if (investor) { investors.unshift({ ...investor, id: Date.now(), name: investor.name + ' - نسخة', portfolio: investor.portfolio.map(h => ({ ...h, id: Date.now() + h.id })) }); showToast('تم نسخ المستثمر ومحفظته'); renderRoute(); } }
 function deleteIdea(id) { if (confirm('هل تريد حذف هذه الفكرة؟')) { ideas = ideas.filter(i => i.id !== id); showToast('تم حذف الفكرة'); renderRoute(); } }
@@ -528,6 +668,7 @@ function renderRoute(scroll = true) {
   else if (path === '/projects') content = projectsPageView();
   else if (path === '/projects/new') content = newProjectPage();
   else if (path === '/investors') content = investorsPage();
+  else if (path.match(/^\/investors\/compare(\/[\d-]+)?$/)) content = portfolioComparisonPage(path.split('/')[3]);
   else if (path.match(/^\/investors\/\d+(\/portfolio)?$/)) content = investorPortfolioPage(path.split('/')[2]);
   else if (path.startsWith('/dashboard')) content = dashboardPage();
   else content = hero();
@@ -557,6 +698,10 @@ window.setIdeaPage = setIdeaPage;
 window.setProjectsPage = setProjectsPage;
 window.setInvestorPage = setInvestorPage;
 window.setPortfolioPage = setPortfolioPage;
+window.setComparePage = setComparePage;
+window.toggleCompareInvestor = toggleCompareInvestor;
+window.resetCompareSelection = resetCompareSelection;
+window.applyCompareDeepLink = applyCompareDeepLink;
 window.duplicateIdea = duplicateIdea;
 window.duplicateInvestor = duplicateInvestor;
 window.deleteIdea = deleteIdea;
