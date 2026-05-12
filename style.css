@@ -139,6 +139,22 @@ body {
   background: conic-gradient(from 120deg, #c9944c var(--score), rgba(255,244,219,.12) 0);
 }
 
+.performance-chart {
+  position: relative;
+  overflow: hidden;
+}
+.performance-chart::before {
+  content: '';
+  position: absolute;
+  inset: 1rem;
+  pointer-events: none;
+  border-radius: 2rem;
+  background: radial-gradient(circle at 24% 18%, rgba(255,244,219,.12), transparent 26%), radial-gradient(circle at 78% 30%, rgba(23,89,74,.18), transparent 30%);
+}
+.chart-grid line { stroke: rgba(255,244,219,.12); stroke-width: 1; }
+.chart-dot { fill: #fff4db; stroke: #c9944c; stroke-width: 4; filter: drop-shadow(0 6px 14px rgba(201,148,76,.42)); }
+.chart-label, .chart-value { fill: rgba(255,244,219,.68); font-size: 13px; font-weight: 800; }
+
 .table-scroll { scrollbar-width: thin; scrollbar-color: rgba(201,148,76,.7) rgba(255,255,255,.06); }
 .table-scroll::-webkit-scrollbar { height: 10px; }
 .table-scroll::-webkit-scrollbar-thumb { background: rgba(201,148,76,.7); border-radius: 999px; }
